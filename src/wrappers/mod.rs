@@ -13,3 +13,5 @@ pub(crate) mod scalar;
 pub(crate) mod tensor;
 pub(crate) mod tensor_fallible_generated;
 pub(crate) mod tensor_generated;
+#[cfg(feature = "serde_support")]
+pub(crate) mod serde;

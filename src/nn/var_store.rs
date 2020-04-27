@@ -6,12 +6,16 @@ use std::collections::HashMap;
 use std::ops::Div;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 /// The separator is used to separate path elements in the tensor names.
 const SEP: char = '.';
 
 // When the variable store is frozen, trainable still is set to tree,
 // however the tensor is not set to require gradients.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Variables {
     pub named_variables: HashMap<String, Tensor>,
     pub trainable_variables: Vec<Tensor>,

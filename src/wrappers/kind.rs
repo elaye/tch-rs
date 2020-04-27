@@ -1,7 +1,11 @@
 //! The different kind of elements supported in Torch.
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 /// The different kind of elements that a Tensor can hold.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum Kind {
     Uint8,
     Int8,
