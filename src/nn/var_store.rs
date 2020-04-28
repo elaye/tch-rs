@@ -1,13 +1,15 @@
 //! Variable stores.
 use super::Init;
 use crate::tensor::Tensor;
-use crate::{Device, Kind, TchError};
+use crate::wrappers::serde::*;
+use crate::{Device, Kind};
+use failure::Fallible;
 use std::collections::HashMap;
 use std::ops::Div;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-#[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+#[cfg(feature = "serde_support")]
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 /// The separator is used to separate path elements in the tensor names.
 const SEP: char = '.';
@@ -15,7 +17,7 @@ const SEP: char = '.';
 // When the variable store is frozen, trainable still is set to tree,
 // however the tensor is not set to require gradients.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Variables {
     pub named_variables: HashMap<String, Tensor>,
     pub trainable_variables: Vec<Tensor>,
@@ -169,6 +171,31 @@ impl VarStore {
             }
         }
         Ok(missing_variables)
+    }
+
+    /// Serialize the variables inside the VarStore, ignoring the device.
+    ///
+    /// ```compile_fail
+    /// use serde_json;
+    ///
+    /// let varstore = VarStore::new(Device::Cpu);
+    /// let value = varstore.serialize(serde_json::value::Serializer)?;
+    /// ```
+    pub fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.variables().serialize(serializer)
+    }
+
+    /// Deserialize variables and store them on `device`.
+    pub fn deserialize<'a, V: Deserializer<'a>>(
+        deserializer: V,
+        device: Device,
+    ) -> Result<VarStore, V::Error> {
+        let variables = Variables::deserialize(deserializer)?;
+
+        Ok(VarStore {
+            device,
+            variables_: Arc::new(Mutex::new(variables)),
+        })
     }
 
     /// Freezes a var store.

@@ -1,6 +1,6 @@
 //! The different kind of elements supported in Torch.
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 use serde::{Serialize, Deserialize};
 
 /// The different kind of elements that a Tensor can hold.
