@@ -1,7 +1,9 @@
 //! Variable stores.
 use super::Init;
 use crate::tensor::Tensor;
+#[cfg(feature = "serde_support")]
 use crate::wrappers::serde::*;
+use crate::{Device, Kind};
 use crate::{Device, Kind};
 use failure::Fallible;
 use std::collections::HashMap;
@@ -181,21 +183,30 @@ impl VarStore {
     /// let varstore = VarStore::new(Device::Cpu);
     /// let value = varstore.serialize(serde_json::value::Serializer)?;
     /// ```
+    #[cfg(feature = "serde_support")]
     pub fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.variables().serialize(serializer)
+        let variables = self.variables_.lock().unwrap();
+        variables.serialize(serializer)
     }
 
-    /// Deserialize variables and store them on `device`.
-    pub fn deserialize<'a, V: Deserializer<'a>>(
-        deserializer: V,
-        device: Device,
-    ) -> Result<VarStore, V::Error> {
-        let variables = Variables::deserialize(deserializer)?;
+    /// Deserialize variables.
+    #[cfg(feature = "serde_support")]
+    pub fn deserialize<'a, V: Deserializer<'a>>(&mut self, deserializer: V) -> Fallible<()> {
+        let named_tensors = Variables::deserialize(deserializer)
+            .map_err(|e| format_err!("Cannot deserialize: {}", e))?
+            .named_variables;
 
-        Ok(VarStore {
-            device,
-            variables_: Arc::new(Mutex::new(variables)),
-        })
+        let mut variables = self.variables_.lock().unwrap();
+
+        for (name, var) in variables.named_variables.iter_mut() {
+            match named_tensors.get(name) {
+                Some(src) => {
+                    crate::no_grad(|| var.f_copy_(src).map_err(|e| format_err!("{}: {}", name, e)))?
+                }
+                None => return Err(format_err!("cannot find {}", name)),
+            }
+        }
+        Ok(())
     }
 
     /// Freezes a var store.
