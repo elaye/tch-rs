@@ -191,19 +191,20 @@ impl VarStore {
 
     /// Deserialize variables.
     #[cfg(feature = "serde_support")]
-    pub fn deserialize<'a, V: Deserializer<'a>>(&mut self, deserializer: V) -> Fallible<()> {
+    pub fn deserialize<'a, V: Deserializer<'a>>(
+        &mut self,
+        deserializer: V,
+    ) -> Result<(), TchError> {
         let named_tensors = Variables::deserialize(deserializer)
-            .map_err(|e| format_err!("Cannot deserialize: {}", e))?
+            .map_err(|e| TchError::FileFormat(format!("Cannot deserialize: {}", e)))?
             .named_variables;
 
         let mut variables = self.variables_.lock().unwrap();
 
         for (name, var) in variables.named_variables.iter_mut() {
             match named_tensors.get(name) {
-                Some(src) => {
-                    crate::no_grad(|| var.f_copy_(src).map_err(|e| format_err!("{}: {}", name, e)))?
-                }
-                None => return Err(format_err!("cannot find {}", name)),
+                Some(src) => crate::no_grad(|| var.f_copy_(src).map_err(|e| e.path_context(name)))?,
+                None => return Err(TchError::FileFormat(format!("cannot find {}", name))),
             }
         }
         Ok(())
