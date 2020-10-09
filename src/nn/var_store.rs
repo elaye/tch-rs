@@ -3,9 +3,7 @@ use super::Init;
 use crate::tensor::Tensor;
 #[cfg(feature = "serde_support")]
 use crate::wrappers::serde::*;
-use crate::{Device, Kind};
-use crate::{Device, Kind};
-use failure::Fallible;
+use crate::{Device, Kind, TchError};
 use std::collections::HashMap;
 use std::ops::Div;
 use std::sync::{Arc, Mutex, MutexGuard};
